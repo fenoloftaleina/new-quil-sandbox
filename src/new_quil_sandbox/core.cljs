@@ -2,74 +2,78 @@
   (:require [quil.core :as q :include-macros true]
             [quil.middleware :as m]))
 
+(def size 2000)
+(def n 15)
+(def s (/ size n))
+
 (defn setup []
   ; Set frame rate to 30 frames per second.
-  (q/frame-rate 30)
+  (q/frame-rate 60)
   ; Set color mode to HSB (HSV) instead of default RGB.
   (q/color-mode :hsb)
 
-  (q/background 200)
-
   ; setup function returns initial state. It contains
   ; circle color and position.
-  {:color 0
-   :angle 0})
 
-(defn update-state [state]
-  ; Update sketch state by changing circle color and position.
-  {:color (mod (+ (:color state) 0.7) 255)
-   :x (+ (:x state) 0.1)})
-
-(defn draw-state [state]
   (q/no-fill)
-  (q/stroke 0 0 0 2)
-  (let [x (:x state)
+  (q/stroke 100)
+  (q/stroke-weight 1)
 
-        move 10
-        x1 x
-        y1 50
-        x2 (+ x move)
-        y2 450
+  (q/background 20)
 
-        noise-x1 (* (q/noise x1) 50)
-        noise-x2 (* (q/noise x2) 50)
-
-        x1 (+ x1 noise-x1)
-
-        x2 (+ x2 noise-x2)
-
-        noise-x12 (* (q/noise x1) 50)
-        noise-x22 (* (q/noise x2) 50)
+  {:fields []
+   :frame 0})
 
 
-        y1 (+ y1 noise-x12)
+(defn update-state [{:keys [fields frame] :as state}]
+  {:fields (if (zero? (mod frame 60))
+             (mapv (fn [i] (mapv (fn [j]
+                                   (int (q/random 2)))
+                                 (range n)))
+                   (range n))
+             fields)
+   :a (* 0.5 (+ 1 (q/sin (* frame (/ 0.5 q/PI)))))
+   :frame (inc frame)})
 
-        y2 (+ y2 noise-x22)
+(defn draw-state [{:keys [fields frame a] :as state}]
+  (q/with-translation
+    (mapv #(* (q/random 1) (+ 10 (* frame 0.1)) %) [(q/noise (* frame a)) (q/noise (* frame a))])
 
-        c1x (+ x1 1000 noise-x1)
-        c1y (+ y1 1000 noise-x2)
-        c2x (- x2 100 noise-x12)
-        c2y (- y2 100 noise-x22)
-        ]
+    (q/stroke (* (q/noise (* frame a)) 255) 200 100 (* 15 a))
 
-    ;; (q/with-translation [0
-    ;;                      (/ (q/height) 2)]
+    (doseq [i (range n)]
+      (doseq [j (range n)]
+        (let [field (get-in fields [i j])]
+          ;; (if true
+          ;; (if false
+          ;; (when (and (< i 1) (< j 1))
+          (if (zero? field)
+            (do
+              ;; (q/line (* i s) (* (+ j 0.5) s) (* (+ i 0.5) s) (* (+ j 1) s))
+              ;; (q/line (* (+ i 0.5) s) (* j s) (* (+ i 1) s) (* (+ j 0.5) s))
 
-      ;; (q/line x1 y1 x2 y2)
+              (q/arc (* i s) (* (inc j) s) s s (* q/PI (q/lerp 1.5 2.0 (- 1 a))) (* q/PI 2.0))
+              (q/arc (* (inc i) s) (* j s) s s (* q/PI (q/lerp 0.5 1.0 a)) (* q/PI 1.0))
+              )
+            (do
+              ;; (q/line (* i s) (* (+ j 0.5) s) (* (+ i 0.5) s) (* j s))
+              ;; (q/line (* (+ i 0.5) s) (* (+ j 1) s) (* (+ i 1) s) (* (+ j 0.5) s))
 
-      (q/bezier x1 y1 0
-                c1x c1y 0
-                c2x c2y 0
-                x2 y2 0)
+              ;; (q/line (* i s) (* (+ j 0.5) s) (* (+ i 0.5) s) (* j s))
+              ;; (q/line (* (+ i 0.5) s) (* (+ j 1) s) (* (+ i 1) s) (* (+ j 0.5) s))
 
-      ;; )
-  ))
+              (q/arc (* i s) (* j s) s s (* q/PI (q/lerp 0.0 0.5 a)) (* q/PI 0.5))
+              (q/arc (* (inc i) s) (* (inc j) s) s s (* q/PI (q/lerp 1.0 1.5 (- 1 a))) (* q/PI 1.5))
+              )
+
+
+            ))))))
 
 ; this function is called in index.html
 (defn ^:export run-sketch []
   (q/defsketch new-quil-sandbox
     :host "new-quil-sandbox"
-    :size [500 500]
+    :size [size size]
     ; setup function called only once, during sketch initialization.
     :setup setup
     ; update-state is called on each iteration before draw-state.
